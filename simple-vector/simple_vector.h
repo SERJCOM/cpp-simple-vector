@@ -58,9 +58,8 @@ public:
         std::copy(init.begin(), init.end(), begin());
     }
  
-    SimpleVector(const SimpleVector& temp):data_(temp.size_){
-        SimpleVector temp_vec(temp.begin(), temp.end()); 
-        swap(temp_vec);
+    SimpleVector(const SimpleVector& temp):SimpleVector(temp.begin(), temp.end()){
+
     }
  
     SimpleVector(ReserveProxyObj res): SimpleVector(){
@@ -68,13 +67,13 @@ public:
     }
 
     SimpleVector(SimpleVector&& vec){
-        data_.swap(vec.data_);
+        data_ = std::move(vec.data_);
         size_ = std::exchange(vec.size_, 0);
         capacity_ = std::exchange(vec.capacity_, 0);
     }
 
     template<typename T>
-    void SimpleVector(T begin, T end):data_(std::distance(begin, end)){;
+    SimpleVector(T begin, T end):data_(std::distance(begin, end)){;
         size_ = std::distance(begin, end);
         capacity_ = size_;
         std::copy(begin, end, begin());
@@ -197,13 +196,12 @@ public:
     Iterator Insert(ConstIterator pos, Type&& value) { 
         size_t index = pos - begin();
 
-        assert(pos > 0);
-        assert(pos < capacity_);
+        assert(index >= 0);
+        assert(index < capacity_);
 
         if(size_ == capacity_){
             if(capacity_ == 0){
-                SimpleVector<Type> temp(index == 0 ? 1 : index, std::move(value));
-                data_.swap(temp.data_);
+                Reserve(index == 0 ? 0 : index);
                 data_[index] = std::move(value);
                 capacity_ = index == 0 ? 1 : index;
                 size_ = 1;
@@ -214,7 +212,7 @@ public:
                 temp[index] = std::move(value);
                 std::move(begin() + index, begin() + size_, temp.Get() + index - 1);
                 
-                data_.swap(temp);     
+                data_ = std::move(temp);     
                 capacity_ = size_ * 2;
                 size_++;  
             }
