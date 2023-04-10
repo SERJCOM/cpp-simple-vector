@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
+#include <utility>
+
 
 template <typename Type>
 class ArrayPtr {
@@ -19,6 +21,10 @@ public:
        else{
         raw_ptr_ = new Type[size];
        }
+    }
+
+    ArrayPtr(ArrayPtr&& array){
+        raw_ptr_ = std::exchange(array.raw_ptr_, nullptr);
     }
 
     // Конструктор из сырого указателя, хранящего адрес массива в куче либо nullptr
@@ -59,6 +65,13 @@ public:
     explicit operator bool() const {
         return raw_ptr_ != nullptr;
     }
+
+    ArrayPtr& operator=(ArrayPtr&& array){
+        delete[] raw_ptr_;
+        raw_ptr_ = std::exchange(array.raw_ptr_, nullptr);
+        return *this;
+    }
+
 
     // Возвращает значение сырого указателя, хранящего адрес начала массива
     Type* Get() const noexcept {

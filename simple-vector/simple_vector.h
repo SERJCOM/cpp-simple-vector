@@ -49,47 +49,42 @@ public:
     SimpleVector(size_t size, const Type& value):data_(size) {
         size_ = size;
         capacity_ = size;
-        for(size_t i = 0; i < size; i++){
-            data_[i] = value;
-        }
-    }
-
-    SimpleVector(size_t size, Type&& value):data_(size) {
-        size_ = size;
-        capacity_ = size;
-        for(size_t i = 0; i < size; i++){
-            data_[i] = std::move(value);
-        }
+        std::fill(begin(), begin() + size, value);
     }
 
  
     // Создаёт вектор из std::initializer_list
     SimpleVector(std::initializer_list<Type> init):data_(init.size()) {
-        SimpleVector<Type> temp(init.size());
-        temp.CreateSimpleVector(init.begin(), init.end());
- 
-        swap(temp);
+        std::copy(init.begin(), init.end(), begin());
     }
  
     SimpleVector(const SimpleVector& temp):data_(temp.size_){
-        SimpleVector temp_vec(temp.GetSize());
-        temp_vec.CreateSimpleVector(temp.begin(), temp.end());
- 
+        SimpleVector temp_vec(temp.begin(), temp.end()); 
         swap(temp_vec);
     }
  
     SimpleVector(ReserveProxyObj res): SimpleVector(){
-        
         Reserve(res.GetCapicacity());
     }
 
     SimpleVector(SimpleVector&& vec){
-        delete[] data_.Get();
         data_.swap(vec.data_);
-        ArrayPtr<Type> temp;
-        vec.data_.swap(temp);
         size_ = std::exchange(vec.size_, 0);
-        capacity_ = std::exchange(vec.capacity_, static_cast<size_t>(0));
+        capacity_ = std::exchange(vec.capacity_, 0);
+    }
+
+    template<typename T>
+    void SimpleVector(T begin, T end):data_(std::distance(begin, end)){;
+        size_ = std::distance(begin, end);
+        capacity_ = size_;
+        std::copy(begin, end, begin());
+    }
+
+    SimpleVector& operator=(SimpleVector&& vec){
+        data_ = std::move(vec.data_);
+        size_ = std::exchange(vec.size_,  0);
+        capacity_ = std::exchange(vec.capacity_, 0); 
+        return *this;
     }
  
  
@@ -142,7 +137,8 @@ public:
         }
         else if(size_ == capacity_){
             ArrayPtr<Type> temp(size_ * 2);
-            copy_m(begin(), begin() + size_,temp.Get());
+            //copy_m(begin(), begin() + size_,temp.Get());
+            std::move(begin(), begin() + size_, temp.Get());
 
             temp[size_] = std::move(value);
             data_.swap(temp);
@@ -159,14 +155,17 @@ public:
 
  
     void PopBack() noexcept{
-        if(size_ != 0){
-            Resize(size_ - 1);
-        }
+        assert(size_ != 0);
+
+        Resize(size_ - 1);   
     }
  
  
     Iterator Insert(ConstIterator pos, const Type& value) { 
+        
         size_t index = pos - begin();
+        assert(pos > 0);
+        assert(pos < capacity_);
 
         if(size_ == capacity_){
             if(capacity_ == 0){
@@ -198,6 +197,9 @@ public:
     Iterator Insert(ConstIterator pos, Type&& value) { 
         size_t index = pos - begin();
 
+        assert(pos > 0);
+        assert(pos < capacity_);
+
         if(size_ == capacity_){
             if(capacity_ == 0){
                 SimpleVector<Type> temp(index == 0 ? 1 : index, std::move(value));
@@ -208,9 +210,9 @@ public:
             }
             else{
                 ArrayPtr<Type> temp(size_ * 2);
-                copy_m(begin(), begin() + size_, temp.Get());
+                std::move(begin(), begin() + size_, temp.Get());
                 temp[index] = std::move(value);
-                copy_m(begin() + index, begin() + size_, temp.Get() + index - 1);
+                std::move(begin() + index, begin() + size_, temp.Get() + index - 1);
                 
                 data_.swap(temp);     
                 capacity_ = size_ * 2;
@@ -239,7 +241,7 @@ public:
     void Reserve(size_t new_capacity){
         if(new_capacity > capacity_){
             ArrayPtr<Type> temp(new_capacity);
-            copy_m(begin(), end(), temp.Get());
+            std::move(begin(), end(), temp.Get());
             data_.swap(temp);
             capacity_ = new_capacity;
             return;
@@ -266,11 +268,13 @@ public:
  
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
+        assert(index < capacity_);
         return data_[index];
     }
  
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
+        assert(index < capacity_);
         return data_[index];
     }
  
@@ -320,7 +324,7 @@ public:
                 index++;
             }
             
-            copy_m(begin(), begin() + size_, temp.Get());
+            std::move(begin(), begin() + size_, temp.Get());
 
             data_.swap(temp);
             size_ = new_size;
@@ -364,14 +368,7 @@ public:
         return (data_.Get() + size_);
     }
  
-    template<typename T>
-    void CreateSimpleVector(T begin, T end){
-        int i = 0;
-        for(auto temp = begin; temp != end; temp++){
-            data_[i] = *(begin + i);
-            i++;
-        }
-    }
+    
 
  
 private:
